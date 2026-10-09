@@ -1,0 +1,95 @@
+# ---------- Go ----------
+# Бинарники
+/backend/bin/
+/backend/build/
+/backend/tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Артефакты тестов и покрытия
+coverage.out
+coverage.html
+*.coverprofile
+
+# Вендор
+/backend/vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# ---------- Node / Angular ----------
+# Зависимости
+node_modules/
+/frontend/node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+
+# Сборка
+/frontend/dist/
+/frontend/build/
+/frontend/out-tsc/
+/frontend/.angular/
+.angular/
+
+# Кэши
+.npm
+.eslintcache
+.stylelintcache
+.parcel-cache
+
+# ---------- Env и секреты ----------
+.env
+.env.local
+.env.*.local
+*.env.local
+
+# ---------- IDE / редакторы ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ---------- ОС ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---------- Логи и временные ----------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- Данные Postgres ----------
+/postgres-data/
+/pgdata/
+
+# ---------- Docker ----------
+*.pid
+
+# ---------- Прочее ----------
+/tmp/
+/temp/
+.cache/

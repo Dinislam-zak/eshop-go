@@ -1,0 +1,78 @@
+* text=auto eol=lf
+
+# ---------- Явные текстовые файлы ----------
+*.go        text eol=lf
+*.mod       text eol=lf
+*.sum       text eol=lf
+*.sql       text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.toml      text eol=lf
+*.ini       text eol=lf
+*.env       text eol=lf
+.env.example text eol=lf
+
+# ---------- Frontend: текстовые ----------
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+*.sass      text eol=lf
+*.less      text eol=lf
+*.svg       text eol=lf
+*.vue       text eol=lf
+
+# ---------- Скрипты ----------
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.zsh       text eol=lf
+Makefile    text eol=lf
+Dockerfile  text eol=lf
+*.dockerfile text eol=lf
+
+# ---------- Windows-специфичные ----------
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.ps1       text eol=crlf
+
+# ---------- Бинарные файлы ----------
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.webp      binary
+*.ico       binary
+*.pdf       binary
+*.zip       binary
+*.gz        binary
+*.tar       binary
+*.7z        binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.otf       binary
+*.exe       binary
+*.dll       binary
+*.so        binary
+*.dylib     binary
+
+# ---------- Диффы для специфичных файлов ----------
+*.go        diff=golang
+
+*.md        diff=markdown
+
+# ---------- Linguist (языковая статистика GitHub) ----------
+/frontend/dist/**          linguist-generated=true
+/frontend/node_modules/**  linguist-vendored
+/backend/vendor/**         linguist-vendored
+*.min.js                   linguist-generated=true
+*.min.css                  linguist-generated=true
+package-lock.json          linguist-generated=true
+go.sum                     linguist-generated=true
