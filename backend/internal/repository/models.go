@@ -30,8 +30,8 @@ type OrderItemModel struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
-	OrderID   uint           `gorm:"not null;index"`
-	ProductID uint           `gorm:"not null;index"`
+	OrderID   uint           `gorm:"not null;index;uniqueIndex:idx_order_item_order_product"`
+	ProductID uint           `gorm:"not null;index;uniqueIndex:idx_order_item_order_product"`
 	Quantity  int            `gorm:"not null"`
 	Product   ProductModel   `gorm:"foreignKey:ProductID"`
 }

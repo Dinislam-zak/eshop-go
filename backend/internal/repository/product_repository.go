@@ -62,6 +62,19 @@ func (r *productRepository) GetByID(ctx context.Context, id uint) (*domain.Produ
 	return &product, nil
 }
 
+func (r *productRepository) GetByIDs(ctx context.Context, ids []uint) ([]domain.Product, error) {
+	var models []ProductModel
+	if err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&models).Error; err != nil {
+		return nil, err
+	}
+
+	products := make([]domain.Product, len(models))
+	for i, m := range models {
+		products[i] = toProductDomain(&m)
+	}
+	return products, nil
+}
+
 func (r *productRepository) GetByName(ctx context.Context, name string) (*domain.Product, error) {
 	var model ProductModel
 	if err := r.db.WithContext(ctx).Where("name = ?", name).First(&model).Error; err != nil {
@@ -100,23 +113,25 @@ func (r *productRepository) Update(ctx context.Context, product *domain.Product)
 }
 
 func (r *productRepository) Delete(ctx context.Context, id uint) error {
-	res := r.db.WithContext(ctx).Delete(&ProductModel{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
-	return nil
-}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing ProductModel
+		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&existing, id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrNotFound
+			}
+			return err
+		}
 
-func (r *productRepository) ExistsInOrders(ctx context.Context, id uint) (bool, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&OrderItemModel{}).Where("product_id = ?", id).Count(&count).Error
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
+		var count int64
+		if err := tx.Model(&OrderItemModel{}).Where("product_id = ?", id).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return domain.ErrInUse
+		}
+
+		return tx.Delete(&existing).Error
+	})
 }
 
 func toProductDomain(m *ProductModel) domain.Product {
@@ -127,4 +142,15 @@ func toProductDomain(m *ProductModel) domain.Product {
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
+}
+
+func (r *productRepository) ExistsInOrders(ctx context.Context, id uint) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&OrderItemModel{}).
+		Where("product_id = ?", id).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
