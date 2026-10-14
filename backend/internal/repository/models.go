@@ -11,7 +11,7 @@ type ProductModel struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
-	Name      string         `gorm:"uniqueIndex;not null"`
+	Name      string         `gorm:"uniqueIndex:idx_product_name_active,where:deleted_at IS NULL;not null"`
 	Price     float64        `gorm:"not null"`
 }
 
@@ -20,7 +20,7 @@ type OrderModel struct {
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	DeletedAt       gorm.DeletedAt   `gorm:"index"`
-	Number          string           `gorm:"uniqueIndex;not null"`
+	Number          string           `gorm:"uniqueIndex:idx_order_number_active,where:deleted_at IS NULL;not null"`
 	DeliveryAddress string           `gorm:"not null"`
 	Items           []OrderItemModel `gorm:"foreignKey:OrderID"`
 }

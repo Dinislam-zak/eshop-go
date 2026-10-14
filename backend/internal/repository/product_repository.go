@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shop/backend/internal/domain"
 	"gorm.io/gorm"
 )
@@ -17,22 +18,23 @@ func NewProductRepository(db *gorm.DB) ProductRepository {
 }
 
 func (r *productRepository) Create(ctx context.Context, product *domain.Product) error {
-	var existing ProductModel
-	if err := r.db.WithContext(ctx).Where("name = ?", product.Name).First(&existing).Error; err == nil {
-		return domain.ErrAlreadyExists
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-
-	model := ProductModel{
-		Name:  product.Name,
-		Price: product.Price,
-	}
-	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
-		return err
-	}
-	product.ID = model.ID
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		model := ProductModel{
+			Name:  product.Name,
+			Price: product.Price,
+		}
+		if err := tx.Create(&model).Error; err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return domain.ErrAlreadyExists
+			}
+			return err
+		}
+		product.ID = model.ID
+		product.CreatedAt = model.CreatedAt
+		product.UpdatedAt = model.UpdatedAt
+		return nil
+	})
 }
 
 func (r *productRepository) GetAll(ctx context.Context) ([]domain.Product, error) {
@@ -73,29 +75,28 @@ func (r *productRepository) GetByName(ctx context.Context, name string) (*domain
 }
 
 func (r *productRepository) Update(ctx context.Context, product *domain.Product) error {
-	var existing ProductModel
-	if err := r.db.WithContext(ctx).First(&existing, product.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.ErrNotFound
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing ProductModel
+		if err := tx.First(&existing, product.ID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrNotFound
+			}
+			return err
 		}
-		return err
-	}
 
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&ProductModel{}).Where("name = ? AND id != ?", product.Name, product.ID).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return domain.ErrAlreadyExists
-	}
+		existing.Name = product.Name
+		existing.Price = product.Price
 
-	existing.Name = product.Name
-	existing.Price = product.Price
-
-	if err := r.db.WithContext(ctx).Save(&existing).Error; err != nil {
-		return err
-	}
-	return nil
+		if err := tx.Save(&existing).Error; err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return domain.ErrAlreadyExists
+			}
+			return err
+		}
+		product.UpdatedAt = existing.UpdatedAt
+		return nil
+	})
 }
 
 func (r *productRepository) Delete(ctx context.Context, id uint) error {
@@ -120,8 +121,10 @@ func (r *productRepository) ExistsInOrders(ctx context.Context, id uint) (bool, 
 
 func toProductDomain(m *ProductModel) domain.Product {
 	return domain.Product{
-		ID:    m.ID,
-		Name:  m.Name,
-		Price: m.Price,
+		ID:        m.ID,
+		Name:      m.Name,
+		Price:     m.Price,
+		CreatedAt: m.CreatedAt,
+		UpdatedAt: m.UpdatedAt,
 	}
 }

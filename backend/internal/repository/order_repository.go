@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shop/backend/internal/domain"
 	"gorm.io/gorm"
 )
@@ -17,32 +18,33 @@ func NewOrderRepository(db *gorm.DB) OrderRepository {
 }
 
 func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error {
-	var existing OrderModel
-	if err := r.db.WithContext(ctx).Where("number = ?", order.Number).First(&existing).Error; err == nil {
-		return domain.ErrAlreadyExists
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var items []OrderItemModel
+		for _, item := range order.Items {
+			items = append(items, OrderItemModel{
+				ProductID: item.ProductID,
+				Quantity:  item.Quantity,
+			})
+		}
 
-	var items []OrderItemModel
-	for _, item := range order.Items {
-		items = append(items, OrderItemModel{
-			ProductID: item.ProductID,
-			Quantity:  item.Quantity,
-		})
-	}
+		model := OrderModel{
+			Number:          order.Number,
+			DeliveryAddress: order.DeliveryAddress,
+			Items:           items,
+		}
 
-	model := OrderModel{
-		Number:          order.Number,
-		DeliveryAddress: order.DeliveryAddress,
-		Items:           items,
-	}
-
-	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
-		return err
-	}
-	order.ID = model.ID
-	return nil
+		if err := tx.Create(&model).Error; err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return domain.ErrAlreadyExists
+			}
+			return err
+		}
+		order.ID = model.ID
+		order.CreatedAt = model.CreatedAt
+		order.UpdatedAt = model.UpdatedAt
+		return nil
+	})
 }
 
 func (r *orderRepository) GetAll(ctx context.Context) ([]domain.Order, error) {
@@ -83,26 +85,22 @@ func (r *orderRepository) GetByNumber(ctx context.Context, number string) (*doma
 }
 
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
-	var existing OrderModel
-	if err := r.db.WithContext(ctx).First(&existing, order.ID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.ErrNotFound
-		}
-		return err
-	}
-
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&OrderModel{}).Where("number = ? AND id != ?", order.Number, order.ID).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return domain.ErrAlreadyExists
-	}
-
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing OrderModel
+		if err := tx.Preload("Items").First(&existing, order.ID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrNotFound
+			}
+			return err
+		}
+
 		existing.Number = order.Number
 		existing.DeliveryAddress = order.DeliveryAddress
 		if err := tx.Save(&existing).Error; err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+				return domain.ErrAlreadyExists
+			}
 			return err
 		}
 
@@ -124,19 +122,25 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 				return err
 			}
 		}
+		order.UpdatedAt = existing.UpdatedAt
 		return nil
 	})
 }
 
 func (r *orderRepository) Delete(ctx context.Context, id uint) error {
-	res := r.db.WithContext(ctx).Delete(&OrderModel{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("order_id = ?", id).Delete(&OrderItemModel{}).Error; err != nil {
+			return err
+		}
+		res := tx.Delete(&OrderModel{}, id)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.ErrNotFound
+		}
+		return nil
+	})
 }
 
 func toOrderDomain(m *OrderModel) domain.Order {
@@ -153,5 +157,7 @@ func toOrderDomain(m *OrderModel) domain.Order {
 		Number:          m.Number,
 		DeliveryAddress: m.DeliveryAddress,
 		Items:           items,
+		CreatedAt:       m.CreatedAt,
+		UpdatedAt:       m.UpdatedAt,
 	}
 }
