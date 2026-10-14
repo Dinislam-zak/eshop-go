@@ -1,5 +1,7 @@
 package domain
 
+import "time"
+
 type OrderItem struct {
 	ProductID uint
 	Product   Product
@@ -11,4 +13,6 @@ type Order struct {
 	Number          string
 	DeliveryAddress string
 	Items           []OrderItem
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
