@@ -1,0 +1,159 @@
+package handlers
+
+import (
+	"net/http"
+	"strconv"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/shop/backend/internal/domain"
+	"github.com/shop/backend/internal/service"
+	"github.com/shop/backend/internal/transport/http/dto"
+)
+
+type OrderHandler struct {
+	service service.OrderService
+}
+
+func NewOrderHandler(service service.OrderService) *OrderHandler {
+	return &OrderHandler{service: service}
+}
+
+func (h *OrderHandler) Create(c *gin.Context) {
+	if !strings.Contains(c.GetHeader("Content-Type"), "application/json") {
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "content type must be application/json"})
+		return
+	}
+
+	var req dto.CreateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		handleBindingError(c, err)
+		return
+	}
+
+	order := &domain.Order{
+		Number:          req.Number,
+		DeliveryAddress: req.DeliveryAddress,
+	}
+	for _, item := range req.Items {
+		order.Items = append(order.Items, domain.OrderItem{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+		})
+	}
+
+	created, err := h.service.Create(c.Request.Context(), order)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, toOrderResponse(created))
+}
+
+func (h *OrderHandler) GetAll(c *gin.Context) {
+	orders, err := h.service.GetAll(c.Request.Context())
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	response := make([]dto.OrderResponse, len(orders))
+	for i, o := range orders {
+		response[i] = toOrderResponse(&o)
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *OrderHandler) GetByID(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 0)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	order, err := h.service.GetByID(c.Request.Context(), uint(id))
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, toOrderResponse(order))
+}
+
+func (h *OrderHandler) Update(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 0)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if !strings.Contains(c.GetHeader("Content-Type"), "application/json") {
+		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "content type must be application/json"})
+		return
+	}
+
+	var req dto.UpdateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		handleBindingError(c, err)
+		return
+	}
+
+	order := &domain.Order{
+		ID:              uint(id),
+		Number:          req.Number,
+		DeliveryAddress: req.DeliveryAddress,
+	}
+	for _, item := range req.Items {
+		order.Items = append(order.Items, domain.OrderItem{
+			ProductID: item.ProductID,
+			Quantity:  item.Quantity,
+		})
+	}
+
+	updated, err := h.service.Update(c.Request.Context(), order)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, toOrderResponse(updated))
+}
+
+func (h *OrderHandler) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 0)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), uint(id)); err != nil {
+		handleError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+func toOrderResponse(o *domain.Order) dto.OrderResponse {
+	items := make([]dto.OrderItemResponse, len(o.Items))
+	for i, item := range o.Items {
+		items[i] = dto.OrderItemResponse{
+			ProductID: item.ProductID,
+			Product:   toProductResponse(&item.Product),
+			Quantity:  item.Quantity,
+		}
+	}
+	return dto.OrderResponse{
+		ID:              o.ID,
+		Number:          o.Number,
+		DeliveryAddress: o.DeliveryAddress,
+		Items:           items,
+		CreatedAt:       o.CreatedAt,
+		UpdatedAt:       o.UpdatedAt,
+	}
+}
