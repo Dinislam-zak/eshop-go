@@ -1,0 +1,26 @@
+package repository
+
+import (
+	"context"
+
+	"github.com/shop/backend/internal/domain"
+)
+
+type ProductRepository interface {
+	Create(ctx context.Context, product *domain.Product) error
+	GetAll(ctx context.Context) ([]domain.Product, error)
+	GetByID(ctx context.Context, id uint) (*domain.Product, error)
+	GetByName(ctx context.Context, name string) (*domain.Product, error)
+	Update(ctx context.Context, product *domain.Product) error
+	Delete(ctx context.Context, id uint) error
+	ExistsInOrders(ctx context.Context, id uint) (bool, error)
+}
+
+type OrderRepository interface {
+	Create(ctx context.Context, order *domain.Order) error
+	GetAll(ctx context.Context) ([]domain.Order, error)
+	GetByID(ctx context.Context, id uint) (*domain.Order, error)
+	GetByNumber(ctx context.Context, number string) (*domain.Order, error)
+	Update(ctx context.Context, order *domain.Order) error
+	Delete(ctx context.Context, id uint) error
+}
