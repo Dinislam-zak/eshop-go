@@ -20,25 +20,25 @@ func NewOrderService(orderRepo repository.OrderRepository, productRepo repositor
 	}
 }
 
-func (s *orderService) Create(ctx context.Context, order *domain.Order) error {
+func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain.Order, error) {
 	if order.Number == "" {
-		return &domain.ValidationError{Field: "number", Message: "number is required"}
+		return nil, &domain.ValidationError{Field: "number", Message: "number is required"}
 	}
 	if order.DeliveryAddress == "" {
-		return &domain.ValidationError{Field: "delivery_address", Message: "delivery address is required"}
+		return nil, &domain.ValidationError{Field: "delivery_address", Message: "delivery address is required"}
 	}
 	if len(order.Items) == 0 {
-		return &domain.ValidationError{Field: "items", Message: "order must contain at least one item"}
+		return nil, &domain.ValidationError{Field: "items", Message: "order must contain at least one item"}
 	}
 
 	ids := make([]uint, len(order.Items))
 	seen := make(map[uint]bool)
 	for i, item := range order.Items {
 		if item.Quantity <= 0 {
-			return &domain.ValidationError{Field: "items.quantity", Message: "quantity must be greater than zero"}
+			return nil, &domain.ValidationError{Field: "items.quantity", Message: "quantity must be greater than zero"}
 		}
 		if seen[item.ProductID] {
-			return &domain.ValidationError{Field: "items.product_id", Message: fmt.Sprintf("duplicate product id %d", item.ProductID)}
+			return nil, &domain.ValidationError{Field: "items.product_id", Message: fmt.Sprintf("duplicate product id %d", item.ProductID)}
 		}
 		seen[item.ProductID] = true
 		ids[i] = item.ProductID
@@ -46,17 +46,21 @@ func (s *orderService) Create(ctx context.Context, order *domain.Order) error {
 
 	products, err := s.productRepo.GetByIDs(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("order service create: %w", err)
+		return nil, fmt.Errorf("order service create: %w", err)
 	}
 
 	if len(products) != len(ids) {
-		return &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
+		return nil, &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
 	}
 
 	if err := s.orderRepo.Create(ctx, order); err != nil {
-		return fmt.Errorf("order service create: %w", err)
+		return nil, fmt.Errorf("order service create: %w", err)
 	}
-	return nil
+	created, err := s.orderRepo.GetByID(ctx, order.ID)
+	if err != nil {
+		return nil, fmt.Errorf("order service create: get created: %w", err)
+	}
+	return created, nil
 }
 
 func (s *orderService) GetAll(ctx context.Context) ([]domain.Order, error) {
@@ -78,28 +82,28 @@ func (s *orderService) GetByID(ctx context.Context, id uint) (*domain.Order, err
 	return order, nil
 }
 
-func (s *orderService) Update(ctx context.Context, order *domain.Order) error {
+func (s *orderService) Update(ctx context.Context, order *domain.Order) (*domain.Order, error) {
 	if order.ID == 0 {
-		return &domain.ValidationError{Field: "id", Message: "id is required"}
+		return nil, &domain.ValidationError{Field: "id", Message: "id is required"}
 	}
 	if order.Number == "" {
-		return &domain.ValidationError{Field: "number", Message: "number is required"}
+		return nil, &domain.ValidationError{Field: "number", Message: "number is required"}
 	}
 	if order.DeliveryAddress == "" {
-		return &domain.ValidationError{Field: "delivery_address", Message: "delivery address is required"}
+		return nil, &domain.ValidationError{Field: "delivery_address", Message: "delivery address is required"}
 	}
 	if len(order.Items) == 0 {
-		return &domain.ValidationError{Field: "items", Message: "order must contain at least one item"}
+		return nil, &domain.ValidationError{Field: "items", Message: "order must contain at least one item"}
 	}
 
 	ids := make([]uint, len(order.Items))
 	seen := make(map[uint]bool)
 	for i, item := range order.Items {
 		if item.Quantity <= 0 {
-			return &domain.ValidationError{Field: "items.quantity", Message: "quantity must be greater than zero"}
+			return nil, &domain.ValidationError{Field: "items.quantity", Message: "quantity must be greater than zero"}
 		}
 		if seen[item.ProductID] {
-			return &domain.ValidationError{Field: "items.product_id", Message: fmt.Sprintf("duplicate product id %d", item.ProductID)}
+			return nil, &domain.ValidationError{Field: "items.product_id", Message: fmt.Sprintf("duplicate product id %d", item.ProductID)}
 		}
 		seen[item.ProductID] = true
 		ids[i] = item.ProductID
@@ -107,17 +111,21 @@ func (s *orderService) Update(ctx context.Context, order *domain.Order) error {
 
 	products, err := s.productRepo.GetByIDs(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("order service update: %w", err)
+		return nil, fmt.Errorf("order service update: %w", err)
 	}
 
 	if len(products) != len(ids) {
-		return &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
+		return nil, &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
 	}
 
 	if err := s.orderRepo.Update(ctx, order); err != nil {
-		return fmt.Errorf("order service update: %w", err)
+		return nil, fmt.Errorf("order service update: %w", err)
 	}
-	return nil
+	updated, err := s.orderRepo.GetByID(ctx, order.ID)
+	if err != nil {
+		return nil, fmt.Errorf("order service update: get updated: %w", err)
+	}
+	return updated, nil
 }
 
 func (s *orderService) Delete(ctx context.Context, id uint) error {
