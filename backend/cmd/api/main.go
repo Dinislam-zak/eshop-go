@@ -39,9 +39,10 @@ func main() {
 
 	productRepo := repository.NewProductRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
+	txManager := repository.NewTransactionManager(db)
 
 	productService := service.NewProductService(productRepo)
-	orderService := service.NewOrderService(orderRepo, productRepo)
+	orderService := service.NewOrderService(orderRepo, productRepo, txManager)
 
 	router := httpTransport.NewRouter(productService, orderService)
 

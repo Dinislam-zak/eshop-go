@@ -10,12 +10,14 @@ import (
 type orderService struct {
 	orderRepo   OrderRepository
 	productRepo ProductRepository
+	tx          TransactionManager
 }
 
-func NewOrderService(orderRepo OrderRepository, productRepo ProductRepository) OrderService {
+func NewOrderService(orderRepo OrderRepository, productRepo ProductRepository, tx TransactionManager) OrderService {
 	return &orderService{
 		orderRepo:   orderRepo,
 		productRepo: productRepo,
+		tx:          tx,
 	}
 }
 
@@ -43,21 +45,24 @@ func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain
 		ids[i] = item.ProductID
 	}
 
-	products, err := s.productRepo.GetByIDs(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("order service create: %w", err)
-	}
+	var created *domain.Order
+	err := s.tx.Execute(ctx, func(txCtx context.Context) error {
+		products, err := s.productRepo.GetByIDs(txCtx, ids)
+		if err != nil {
+			return fmt.Errorf("order service create: %w", err)
+		}
+		if len(products) != len(ids) {
+			return &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
+		}
 
-	if len(products) != len(ids) {
-		return nil, &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
-	}
-
-	if err := s.orderRepo.Create(ctx, order); err != nil {
-		return nil, fmt.Errorf("order service create: %w", err)
-	}
-	created, err := s.orderRepo.GetByID(ctx, order.ID)
+		if err := s.orderRepo.Create(txCtx, order); err != nil {
+			return fmt.Errorf("order service create: %w", err)
+		}
+		created = order
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("order service create: get created: %w", err)
+		return nil, err
 	}
 	return created, nil
 }
@@ -108,21 +113,24 @@ func (s *orderService) Update(ctx context.Context, order *domain.Order) (*domain
 		ids[i] = item.ProductID
 	}
 
-	products, err := s.productRepo.GetByIDs(ctx, ids)
-	if err != nil {
-		return nil, fmt.Errorf("order service update: %w", err)
-	}
+	var updated *domain.Order
+	err := s.tx.Execute(ctx, func(txCtx context.Context) error {
+		products, err := s.productRepo.GetByIDs(txCtx, ids)
+		if err != nil {
+			return fmt.Errorf("order service update: %w", err)
+		}
+		if len(products) != len(ids) {
+			return &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
+		}
 
-	if len(products) != len(ids) {
-		return nil, &domain.ValidationError{Field: "items.product_id", Message: "one or more products not found"}
-	}
-
-	if err := s.orderRepo.Update(ctx, order); err != nil {
-		return nil, fmt.Errorf("order service update: %w", err)
-	}
-	updated, err := s.orderRepo.GetByID(ctx, order.ID)
+		if err := s.orderRepo.Update(txCtx, order); err != nil {
+			return fmt.Errorf("order service update: %w", err)
+		}
+		updated = order
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("order service update: get updated: %w", err)
+		return nil, err
 	}
 	return updated, nil
 }
@@ -131,7 +139,6 @@ func (s *orderService) Delete(ctx context.Context, id uint) error {
 	if id == 0 {
 		return &domain.ValidationError{Field: "id", Message: "id is required"}
 	}
-
 	if err := s.orderRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("order service delete: %w", err)
 	}

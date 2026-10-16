@@ -25,11 +25,7 @@ func (s *productService) Create(ctx context.Context, product *domain.Product) (*
 	if err := s.repo.Create(ctx, product); err != nil {
 		return nil, fmt.Errorf("product service create: %w", err)
 	}
-	created, err := s.repo.GetByID(ctx, product.ID)
-	if err != nil {
-		return nil, fmt.Errorf("product service create: get created: %w", err)
-	}
-	return created, nil
+	return product, nil
 }
 
 func (s *productService) GetAll(ctx context.Context, page, pageSize int) ([]domain.Product, error) {
@@ -64,18 +60,13 @@ func (s *productService) Update(ctx context.Context, product *domain.Product) (*
 	if err := s.repo.Update(ctx, product); err != nil {
 		return nil, fmt.Errorf("product service update: %w", err)
 	}
-	updated, err := s.repo.GetByID(ctx, product.ID)
-	if err != nil {
-		return nil, fmt.Errorf("product service update: get updated: %w", err)
-	}
-	return updated, nil
+	return product, nil
 }
 
 func (s *productService) Delete(ctx context.Context, id uint) error {
 	if id == 0 {
 		return &domain.ValidationError{Field: "id", Message: "id is required"}
 	}
-
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("product service delete: %w", err)
 	}

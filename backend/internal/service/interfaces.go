@@ -6,6 +6,10 @@ import (
 	"github.com/shop/backend/internal/domain"
 )
 
+type TransactionManager interface {
+	Execute(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type ProductService interface {
 	Create(ctx context.Context, product *domain.Product) (*domain.Product, error)
 	GetAll(ctx context.Context, page, pageSize int) ([]domain.Product, error)
