@@ -1,11 +1,15 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 type Product struct {
 	ID        uint
 	Name      string
-	Price     float64
+	Price     decimal.Decimal
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

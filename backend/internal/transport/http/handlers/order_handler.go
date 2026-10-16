@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shop/backend/internal/domain"
@@ -20,11 +19,6 @@ func NewOrderHandler(service service.OrderService) *OrderHandler {
 }
 
 func (h *OrderHandler) Create(c *gin.Context) {
-	if !strings.Contains(c.GetHeader("Content-Type"), "application/json") {
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "content type must be application/json"})
-		return
-	}
-
 	var req dto.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		handleBindingError(c, err)
@@ -88,11 +82,6 @@ func (h *OrderHandler) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(idStr, 10, 0)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-
-	if !strings.Contains(c.GetHeader("Content-Type"), "application/json") {
-		c.JSON(http.StatusUnsupportedMediaType, gin.H{"error": "content type must be application/json"})
 		return
 	}
 
