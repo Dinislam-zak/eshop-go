@@ -46,7 +46,14 @@ func (h *OrderHandler) Create(c *gin.Context) {
 }
 
 func (h *OrderHandler) GetAll(c *gin.Context) {
-	orders, err := h.service.GetAll(c.Request.Context())
+	var req dto.PaginationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		handleBindingError(c, err)
+		return
+	}
+	req.Normalize()
+
+	orders, err := h.service.GetAll(c.Request.Context(), req.Page, req.PageSize)
 	if err != nil {
 		handleError(c, err)
 		return

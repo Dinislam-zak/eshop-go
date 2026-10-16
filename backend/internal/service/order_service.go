@@ -62,8 +62,8 @@ func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain
 	return created, nil
 }
 
-func (s *orderService) GetAll(ctx context.Context) ([]domain.Order, error) {
-	orders, err := s.orderRepo.GetAll(ctx)
+func (s *orderService) GetAll(ctx context.Context, page, pageSize int) ([]domain.Order, error) {
+	orders, err := s.orderRepo.GetAll(ctx, page, pageSize)
 	if err != nil {
 		return nil, fmt.Errorf("order service get all: %w", err)
 	}

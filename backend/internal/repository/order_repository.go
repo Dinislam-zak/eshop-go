@@ -47,9 +47,10 @@ func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error
 	})
 }
 
-func (r *orderRepository) GetAll(ctx context.Context) ([]domain.Order, error) {
+func (r *orderRepository) GetAll(ctx context.Context, page, pageSize int) ([]domain.Order, error) {
 	var models []OrderModel
-	if err := r.db.WithContext(ctx).Preload("Items.Product").Find(&models).Error; err != nil {
+	offset := (page - 1) * pageSize
+	if err := r.db.WithContext(ctx).Preload("Items.Product").Offset(offset).Limit(pageSize).Find(&models).Error; err != nil {
 		return nil, err
 	}
 
