@@ -13,7 +13,7 @@ type productRepository struct {
 	db *gorm.DB
 }
 
-func NewProductRepository(db *gorm.DB) ProductRepository {
+func NewProductRepository(db *gorm.DB) *productRepository {
 	return &productRepository{db: db}
 }
 
@@ -130,8 +130,21 @@ func (r *productRepository) Delete(ctx context.Context, id uint) error {
 			return domain.ErrInUse
 		}
 
-		return tx.Delete(&existing).Error
+		res := tx.Delete(&existing)
+		if res.Error != nil {
+			return res.Error
+		}
+		return nil
 	})
+}
+
+func (r *productRepository) ExistsInOrders(ctx context.Context, id uint) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&OrderItemModel{}).Where("product_id = ?", id).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 func toProductDomain(m *ProductModel) domain.Product {
@@ -142,15 +155,4 @@ func toProductDomain(m *ProductModel) domain.Product {
 		CreatedAt: m.CreatedAt,
 		UpdatedAt: m.UpdatedAt,
 	}
-}
-
-func (r *productRepository) ExistsInOrders(ctx context.Context, id uint) (bool, error) {
-	var count int64
-	if err := r.db.WithContext(ctx).
-		Model(&OrderItemModel{}).
-		Where("product_id = ?", id).
-		Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }

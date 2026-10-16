@@ -5,15 +5,14 @@ import (
 	"fmt"
 
 	"github.com/shop/backend/internal/domain"
-	"github.com/shop/backend/internal/repository"
 )
 
 type orderService struct {
-	orderRepo   repository.OrderRepository
-	productRepo repository.ProductRepository
+	orderRepo   OrderRepository
+	productRepo ProductRepository
 }
 
-func NewOrderService(orderRepo repository.OrderRepository, productRepo repository.ProductRepository) OrderService {
+func NewOrderService(orderRepo OrderRepository, productRepo ProductRepository) OrderService {
 	return &orderService{
 		orderRepo:   orderRepo,
 		productRepo: productRepo,

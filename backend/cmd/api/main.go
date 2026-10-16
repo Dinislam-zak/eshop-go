@@ -28,6 +28,10 @@ func main() {
 		log.Fatalf("failed to initialize database: %v", err)
 	}
 
+	if err := database.RunMigrations(db); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+
 	sqlDB, err := db.DB()
 	if err != nil {
 		log.Fatalf("failed to get underlying sql.DB: %v", err)
@@ -42,10 +46,11 @@ func main() {
 	router := httpTransport.NewRouter(productService, orderService)
 
 	srv := &http.Server{
-		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	ln, err := net.Listen("tcp", cfg.GetServerAddress())
