@@ -40,7 +40,14 @@ func (h *ProductHandler) Create(c *gin.Context) {
 }
 
 func (h *ProductHandler) GetAll(c *gin.Context) {
-	products, err := h.service.GetAll(c.Request.Context())
+	var req dto.PaginationRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		handleBindingError(c, err)
+		return
+	}
+	req.Normalize()
+
+	products, err := h.service.GetAll(c.Request.Context(), req.Page, req.PageSize)
 	if err != nil {
 		handleError(c, err)
 		return

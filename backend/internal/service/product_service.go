@@ -32,8 +32,8 @@ func (s *productService) Create(ctx context.Context, product *domain.Product) (*
 	return created, nil
 }
 
-func (s *productService) GetAll(ctx context.Context) ([]domain.Product, error) {
-	products, err := s.repo.GetAll(ctx)
+func (s *productService) GetAll(ctx context.Context, page, pageSize int) ([]domain.Product, error) {
+	products, err := s.repo.GetAll(ctx, page, pageSize)
 	if err != nil {
 		return nil, fmt.Errorf("product service get all: %w", err)
 	}

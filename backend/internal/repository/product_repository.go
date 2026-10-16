@@ -37,9 +37,10 @@ func (r *productRepository) Create(ctx context.Context, product *domain.Product)
 	})
 }
 
-func (r *productRepository) GetAll(ctx context.Context) ([]domain.Product, error) {
+func (r *productRepository) GetAll(ctx context.Context, page, pageSize int) ([]domain.Product, error) {
 	var models []ProductModel
-	if err := r.db.WithContext(ctx).Find(&models).Error; err != nil {
+	offset := (page - 1) * pageSize
+	if err := r.db.WithContext(ctx).Offset(offset).Limit(pageSize).Find(&models).Error; err != nil {
 		return nil, err
 	}
 
