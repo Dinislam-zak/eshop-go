@@ -18,8 +18,6 @@ func handleError(c *gin.Context, err error) {
 	}
 
 	switch {
-	case errors.Is(err, domain.ErrValidation):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case errors.Is(err, domain.ErrAlreadyExists):

@@ -10,7 +10,6 @@ type OrderRepository interface {
 	Create(ctx context.Context, order *domain.Order) error
 	GetAll(ctx context.Context, page, pageSize int) ([]domain.Order, error)
 	GetByID(ctx context.Context, id uint) (*domain.Order, error)
-	GetByNumber(ctx context.Context, number string) (*domain.Order, error)
 	Update(ctx context.Context, order *domain.Order) error
 	Delete(ctx context.Context, id uint) error
 }

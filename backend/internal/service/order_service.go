@@ -21,7 +21,10 @@ func NewOrderService(orderRepo OrderRepository, productRepo ProductRepository, t
 	}
 }
 
-func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+func validateOrder(order *domain.Order, requireID bool) ([]uint, error) {
+	if requireID && order.ID == 0 {
+		return nil, &domain.ValidationError{Field: "id", Message: "id is required"}
+	}
 	if order.Number == "" {
 		return nil, &domain.ValidationError{Field: "number", Message: "number is required"}
 	}
@@ -44,9 +47,17 @@ func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain
 		seen[item.ProductID] = true
 		ids[i] = item.ProductID
 	}
+	return ids, nil
+}
+
+func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+	ids, err := validateOrder(order, false)
+	if err != nil {
+		return nil, err
+	}
 
 	var created *domain.Order
-	err := s.tx.Execute(ctx, func(txCtx context.Context) error {
+	err = s.tx.Execute(ctx, func(txCtx context.Context) error {
 		products, err := s.productRepo.GetByIDs(txCtx, ids)
 		if err != nil {
 			return fmt.Errorf("order service create: %w", err)
@@ -58,7 +69,7 @@ func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain
 		if err := s.orderRepo.Create(txCtx, order); err != nil {
 			return fmt.Errorf("order service create: %w", err)
 		}
-		
+
 		createdOrder, err := s.orderRepo.GetByID(txCtx, order.ID)
 		if err != nil {
 			return fmt.Errorf("order service create: %w", err)
@@ -92,34 +103,13 @@ func (s *orderService) GetByID(ctx context.Context, id uint) (*domain.Order, err
 }
 
 func (s *orderService) Update(ctx context.Context, order *domain.Order) (*domain.Order, error) {
-	if order.ID == 0 {
-		return nil, &domain.ValidationError{Field: "id", Message: "id is required"}
-	}
-	if order.Number == "" {
-		return nil, &domain.ValidationError{Field: "number", Message: "number is required"}
-	}
-	if order.DeliveryAddress == "" {
-		return nil, &domain.ValidationError{Field: "delivery_address", Message: "delivery address is required"}
-	}
-	if len(order.Items) == 0 {
-		return nil, &domain.ValidationError{Field: "items", Message: "order must contain at least one item"}
-	}
-
-	ids := make([]uint, len(order.Items))
-	seen := make(map[uint]bool)
-	for i, item := range order.Items {
-		if item.Quantity <= 0 {
-			return nil, &domain.ValidationError{Field: "items.quantity", Message: "quantity must be greater than zero"}
-		}
-		if seen[item.ProductID] {
-			return nil, &domain.ValidationError{Field: "items.product_id", Message: fmt.Sprintf("duplicate product id %d", item.ProductID)}
-		}
-		seen[item.ProductID] = true
-		ids[i] = item.ProductID
+	ids, err := validateOrder(order, true)
+	if err != nil {
+		return nil, err
 	}
 
 	var updated *domain.Order
-	err := s.tx.Execute(ctx, func(txCtx context.Context) error {
+	err = s.tx.Execute(ctx, func(txCtx context.Context) error {
 		products, err := s.productRepo.GetByIDs(txCtx, ids)
 		if err != nil {
 			return fmt.Errorf("order service update: %w", err)
@@ -131,7 +121,7 @@ func (s *orderService) Update(ctx context.Context, order *domain.Order) (*domain
 		if err := s.orderRepo.Update(txCtx, order); err != nil {
 			return fmt.Errorf("order service update: %w", err)
 		}
-		
+
 		updatedOrder, err := s.orderRepo.GetByID(txCtx, order.ID)
 		if err != nil {
 			return fmt.Errorf("order service update: %w", err)

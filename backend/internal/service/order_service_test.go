@@ -52,10 +52,6 @@ func (m *mockOrderRepo) GetByID(ctx context.Context, id uint) (*domain.Order, er
 	return m.getByIDFn(ctx, id)
 }
 
-func (m *mockOrderRepo) GetByNumber(ctx context.Context, number string) (*domain.Order, error) {
-	panic("not implemented")
-}
-
 func (m *mockOrderRepo) Update(ctx context.Context, order *domain.Order) error {
 	m.updateCalls++
 	if m.updateFn == nil {
