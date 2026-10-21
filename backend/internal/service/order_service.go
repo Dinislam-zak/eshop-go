@@ -58,7 +58,12 @@ func (s *orderService) Create(ctx context.Context, order *domain.Order) (*domain
 		if err := s.orderRepo.Create(txCtx, order); err != nil {
 			return fmt.Errorf("order service create: %w", err)
 		}
-		created = order
+		
+		createdOrder, err := s.orderRepo.GetByID(txCtx, order.ID)
+		if err != nil {
+			return fmt.Errorf("order service create: %w", err)
+		}
+		created = createdOrder
 		return nil
 	})
 	if err != nil {
@@ -126,7 +131,12 @@ func (s *orderService) Update(ctx context.Context, order *domain.Order) (*domain
 		if err := s.orderRepo.Update(txCtx, order); err != nil {
 			return fmt.Errorf("order service update: %w", err)
 		}
-		updated = order
+		
+		updatedOrder, err := s.orderRepo.GetByID(txCtx, order.ID)
+		if err != nil {
+			return fmt.Errorf("order service update: %w", err)
+		}
+		updated = updatedOrder
 		return nil
 	})
 	if err != nil {
@@ -139,8 +149,10 @@ func (s *orderService) Delete(ctx context.Context, id uint) error {
 	if id == 0 {
 		return &domain.ValidationError{Field: "id", Message: "id is required"}
 	}
-	if err := s.orderRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("order service delete: %w", err)
-	}
-	return nil
+	return s.tx.Execute(ctx, func(txCtx context.Context) error {
+		if err := s.orderRepo.Delete(txCtx, id); err != nil {
+			return fmt.Errorf("order service delete: %w", err)
+		}
+		return nil
+	})
 }

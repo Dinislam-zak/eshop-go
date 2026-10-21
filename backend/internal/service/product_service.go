@@ -9,10 +9,11 @@ import (
 
 type productService struct {
 	repo ProductRepository
+	tx   TransactionManager
 }
 
-func NewProductService(repo ProductRepository) ProductService {
-	return &productService{repo: repo}
+func NewProductService(repo ProductRepository, tx TransactionManager) ProductService {
+	return &productService{repo: repo, tx: tx}
 }
 
 func (s *productService) Create(ctx context.Context, product *domain.Product) (*domain.Product, error) {
@@ -22,10 +23,22 @@ func (s *productService) Create(ctx context.Context, product *domain.Product) (*
 	if product.Price.IsNegative() || product.Price.IsZero() {
 		return nil, &domain.ValidationError{Field: "price", Message: "price must be greater than zero"}
 	}
-	if err := s.repo.Create(ctx, product); err != nil {
-		return nil, fmt.Errorf("product service create: %w", err)
+	var created *domain.Product
+	err := s.tx.Execute(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Create(txCtx, product); err != nil {
+			return fmt.Errorf("product service create: %w", err)
+		}
+		p, err := s.repo.GetByID(txCtx, product.ID)
+		if err != nil {
+			return fmt.Errorf("product service create: %w", err)
+		}
+		created = p
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return product, nil
+	return created, nil
 }
 
 func (s *productService) GetAll(ctx context.Context, page, pageSize int) ([]domain.Product, error) {
@@ -57,18 +70,32 @@ func (s *productService) Update(ctx context.Context, product *domain.Product) (*
 	if product.Price.IsNegative() || product.Price.IsZero() {
 		return nil, &domain.ValidationError{Field: "price", Message: "price must be greater than zero"}
 	}
-	if err := s.repo.Update(ctx, product); err != nil {
-		return nil, fmt.Errorf("product service update: %w", err)
+	var updated *domain.Product
+	err := s.tx.Execute(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Update(txCtx, product); err != nil {
+			return fmt.Errorf("product service update: %w", err)
+		}
+		p, err := s.repo.GetByID(txCtx, product.ID)
+		if err != nil {
+			return fmt.Errorf("product service update: %w", err)
+		}
+		updated = p
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-	return product, nil
+	return updated, nil
 }
 
 func (s *productService) Delete(ctx context.Context, id uint) error {
 	if id == 0 {
 		return &domain.ValidationError{Field: "id", Message: "id is required"}
 	}
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("product service delete: %w", err)
-	}
-	return nil
+	return s.tx.Execute(ctx, func(txCtx context.Context) error {
+		if err := s.repo.Delete(txCtx, id); err != nil {
+			return fmt.Errorf("product service delete: %w", err)
+		}
+		return nil
+	})
 }

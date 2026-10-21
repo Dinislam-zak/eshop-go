@@ -41,7 +41,7 @@ func main() {
 	orderRepo := repository.NewOrderRepository(db)
 	txManager := repository.NewTransactionManager(db)
 
-	productService := service.NewProductService(productRepo)
+	productService := service.NewProductService(productRepo, txManager)
 	orderService := service.NewOrderService(orderRepo, productRepo, txManager)
 
 	router := httpTransport.NewRouter(productService, orderService)
