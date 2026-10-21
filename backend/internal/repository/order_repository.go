@@ -94,7 +94,7 @@ func (r *orderRepository) GetByNumber(ctx context.Context, number string) (*doma
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
 	db := r.getDB(ctx)
 	var existing OrderModel
-	if err := db.Preload("Items").First(&existing, order.ID).Error; err != nil {
+	if err := db.First(&existing, order.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.ErrNotFound
 		}
@@ -129,7 +129,6 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 			return err
 		}
 	}
-	order.UpdatedAt = existing.UpdatedAt
 	return nil
 }
 
