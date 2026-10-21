@@ -11,8 +11,6 @@ type ProductRepository interface {
 	GetAll(ctx context.Context, page, pageSize int) ([]domain.Product, error)
 	GetByID(ctx context.Context, id uint) (*domain.Product, error)
 	GetByIDs(ctx context.Context, ids []uint) ([]domain.Product, error)
-	GetByName(ctx context.Context, name string) (*domain.Product, error)
 	Update(ctx context.Context, product *domain.Product) error
 	Delete(ctx context.Context, id uint) error
-	ExistsInOrders(ctx context.Context, id uint) (bool, error)
 }

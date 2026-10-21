@@ -85,14 +85,6 @@ func (m *mockProductRepo) Delete(ctx context.Context, id uint) error {
 	return m.deleteFn(ctx, id)
 }
 
-func (m *mockProductRepo) GetByName(ctx context.Context, name string) (*domain.Product, error) {
-	panic("not implemented")
-}
-
-func (m *mockProductRepo) ExistsInOrders(ctx context.Context, id uint) (bool, error) {
-	panic("not implemented")
-}
-
 type mockTxManager struct {
 	beginErr  error
 	commitErr error

@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shop/backend/internal/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type productRepository struct {
@@ -121,7 +122,7 @@ func (r *productRepository) Update(ctx context.Context, product *domain.Product)
 func (r *productRepository) Delete(ctx context.Context, id uint) error {
 	db := r.getDB(ctx)
 	var existing ProductModel
-	if err := db.Set("gorm:query_option", "FOR UPDATE").First(&existing, id).Error; err != nil {
+	if err := db.Clauses(clause.Locking{Strength: "UPDATE"}).First(&existing, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return domain.ErrNotFound
 		}
