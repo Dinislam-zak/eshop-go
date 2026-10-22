@@ -33,13 +33,11 @@ func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error
 			Quantity:  item.Quantity,
 		})
 	}
-
 	model := OrderModel{
 		Number:          order.Number,
 		DeliveryAddress: order.DeliveryAddress,
 		Items:           items,
 	}
-
 	if err := db.Create(&model).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -59,7 +57,6 @@ func (r *orderRepository) GetAll(ctx context.Context, page, pageSize int) ([]dom
 	if err := r.getDB(ctx).Preload("Items.Product").Offset(offset).Limit(pageSize).Find(&models).Error; err != nil {
 		return nil, err
 	}
-
 	orders := make([]domain.Order, len(models))
 	for i, m := range models {
 		orders[i] = toOrderDomain(&m)
@@ -79,18 +76,6 @@ func (r *orderRepository) GetByID(ctx context.Context, id uint) (*domain.Order, 
 	return &order, nil
 }
 
-func (r *orderRepository) GetByNumber(ctx context.Context, number string) (*domain.Order, error) {
-	var model OrderModel
-	if err := r.getDB(ctx).Where("number = ?", number).Preload("Items.Product").First(&model).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domain.ErrNotFound
-		}
-		return nil, err
-	}
-	order := toOrderDomain(&model)
-	return &order, nil
-}
-
 func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error {
 	db := r.getDB(ctx)
 	var existing OrderModel
@@ -100,7 +85,6 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 		}
 		return err
 	}
-
 	existing.Number = order.Number
 	existing.DeliveryAddress = order.DeliveryAddress
 	if err := db.Save(&existing).Error; err != nil {
@@ -110,11 +94,9 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 		}
 		return err
 	}
-
 	if err := db.Where("order_id = ?", existing.ID).Delete(&OrderItemModel{}).Error; err != nil {
 		return err
 	}
-
 	var items []OrderItemModel
 	for _, item := range order.Items {
 		items = append(items, OrderItemModel{
@@ -123,7 +105,6 @@ func (r *orderRepository) Update(ctx context.Context, order *domain.Order) error
 			Quantity:  item.Quantity,
 		})
 	}
-
 	if len(items) > 0 {
 		if err := db.Create(&items).Error; err != nil {
 			return err

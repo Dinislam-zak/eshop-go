@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -24,7 +23,7 @@ func main() {
 	level.Set(slog.LevelInfo)
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 
-	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		slog.Warn("failed to load .env file", "error", err)
 	}
 
@@ -60,7 +59,7 @@ func main() {
 	productService := service.NewProductService(productRepo, txManager)
 	orderService := service.NewOrderService(orderRepo, productRepo, txManager)
 
-	router := httpTransport.NewRouter(cfg, productService, orderService)
+	router := httpTransport.NewRouter(cfg, sqlDB, productService, orderService)
 
 	srv := &http.Server{
 		Handler:           router,

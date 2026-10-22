@@ -1,6 +1,11 @@
 package http
 
 import (
+	"context"
+	"database/sql"
+	"log/slog"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/shop/backend/internal/config"
 	"github.com/shop/backend/internal/service"
@@ -8,8 +13,24 @@ import (
 	"github.com/shop/backend/internal/transport/http/middleware"
 )
 
-func NewRouter(cfg *config.Config, productService service.ProductService, orderService service.OrderService) *gin.Engine {
+func NewRouter(cfg *config.Config, sqlDB *sql.DB, productService service.ProductService, orderService service.OrderService) *gin.Engine {
 	r := gin.New()
+
+	r.GET("/healthz", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	r.GET("/readyz", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 500*time.Millisecond)
+		defer cancel()
+		if err := sqlDB.PingContext(ctx); err != nil {
+			slog.Warn("readyz failed", "error", err)
+			c.JSON(503, gin.H{"status": "unavailable"})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	r.Use(middleware.RequestID(), middleware.CORS(cfg.CORSOrigins), middleware.Logger(), middleware.Recovery())
 
 	productHandler := handlers.NewProductHandler(productService)

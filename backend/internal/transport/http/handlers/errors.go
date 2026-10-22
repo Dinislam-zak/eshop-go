@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -38,7 +38,7 @@ func handleError(c *gin.Context, err error) {
 		resp.Error = dto.ErrorBody{Code: "in_use", Message: "entity is in use"}
 		c.JSON(http.StatusConflict, resp)
 	default:
-		log.Printf("[ERROR] request_id=%s unhandled error: %v", requestID, err)
+		slog.Error("unhandled error", "request_id", requestID, "error", err)
 		resp.Error = dto.ErrorBody{Code: "internal", Message: "internal server error"}
 		c.JSON(http.StatusInternalServerError, resp)
 	}

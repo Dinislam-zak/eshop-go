@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shop/backend/internal/transport/http/dto"
 )
 
 func Recovery() gin.HandlerFunc {
@@ -18,10 +19,10 @@ func Recovery() gin.HandlerFunc {
 					"error", err,
 					"stack", string(debug.Stack()),
 				)
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-					"error": gin.H{
-						"code":    "internal",
-						"message": "internal server error",
+				c.AbortWithStatusJSON(http.StatusInternalServerError, dto.ErrorResponse{
+					Error: dto.ErrorBody{
+						Code:    "internal",
+						Message: "internal server error",
 					},
 				})
 			}

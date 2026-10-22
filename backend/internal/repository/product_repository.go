@@ -50,7 +50,6 @@ func (r *productRepository) GetAll(ctx context.Context, page, pageSize int) ([]d
 	if err := r.getDB(ctx).Offset(offset).Limit(pageSize).Find(&models).Error; err != nil {
 		return nil, err
 	}
-
 	products := make([]domain.Product, len(models))
 	for i, m := range models {
 		products[i] = toProductDomain(&m)
@@ -75,24 +74,11 @@ func (r *productRepository) GetByIDs(ctx context.Context, ids []uint) ([]domain.
 	if err := r.getDB(ctx).Where("id IN ?", ids).Find(&models).Error; err != nil {
 		return nil, err
 	}
-
 	products := make([]domain.Product, len(models))
 	for i, m := range models {
 		products[i] = toProductDomain(&m)
 	}
 	return products, nil
-}
-
-func (r *productRepository) GetByName(ctx context.Context, name string) (*domain.Product, error) {
-	var model ProductModel
-	if err := r.getDB(ctx).Where("name = ?", name).First(&model).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, domain.ErrNotFound
-		}
-		return nil, err
-	}
-	product := toProductDomain(&model)
-	return &product, nil
 }
 
 func (r *productRepository) Update(ctx context.Context, product *domain.Product) error {
@@ -104,10 +90,8 @@ func (r *productRepository) Update(ctx context.Context, product *domain.Product)
 		}
 		return err
 	}
-
 	existing.Name = product.Name
 	existing.Price = product.Price
-
 	if err := db.Save(&existing).Error; err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -128,7 +112,6 @@ func (r *productRepository) Delete(ctx context.Context, id uint) error {
 		}
 		return err
 	}
-
 	var count int64
 	if err := db.Model(&OrderItemModel{}).Where("product_id = ?", id).Count(&count).Error; err != nil {
 		return err
@@ -136,21 +119,11 @@ func (r *productRepository) Delete(ctx context.Context, id uint) error {
 	if count > 0 {
 		return domain.ErrInUse
 	}
-
 	res := db.Delete(&existing)
 	if res.Error != nil {
 		return res.Error
 	}
 	return nil
-}
-
-func (r *productRepository) ExistsInOrders(ctx context.Context, id uint) (bool, error) {
-	var count int64
-	err := r.getDB(ctx).Model(&OrderItemModel{}).Where("product_id = ?", id).Count(&count).Error
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }
 
 func toProductDomain(m *ProductModel) domain.Product {
