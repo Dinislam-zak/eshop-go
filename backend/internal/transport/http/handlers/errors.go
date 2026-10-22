@@ -8,9 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/shop/backend/internal/domain"
+	"github.com/shop/backend/internal/transport/http/middleware"
 )
 
 func handleError(c *gin.Context, err error) {
+	requestID := middleware.GetRequestID(c.Request.Context())
+
 	var validationErr *domain.ValidationError
 	if errors.As(err, &validationErr) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
@@ -25,7 +28,7 @@ func handleError(c *gin.Context, err error) {
 	case errors.Is(err, domain.ErrInUse):
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 	default:
-		log.Printf("unhandled error: %v", err)
+		log.Printf("[ERROR] request_id=%s unhandled error: %v", requestID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 	}
 }

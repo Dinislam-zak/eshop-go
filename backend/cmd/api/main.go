@@ -19,9 +19,14 @@ import (
 )
 
 func main() {
-	_ = godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Printf("warning: failed to load .env file: %v (using environment variables or defaults)", err)
+	}
 
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
 
 	db, err := database.NewDB(cfg)
 	if err != nil {
@@ -44,7 +49,7 @@ func main() {
 	productService := service.NewProductService(productRepo, txManager)
 	orderService := service.NewOrderService(orderRepo, productRepo, txManager)
 
-	router := httpTransport.NewRouter(productService, orderService)
+	router := httpTransport.NewRouter(cfg, productService, orderService)
 
 	srv := &http.Server{
 		Handler:           router,

@@ -2,14 +2,15 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/shop/backend/internal/config"
 	"github.com/shop/backend/internal/service"
 	"github.com/shop/backend/internal/transport/http/handlers"
 	"github.com/shop/backend/internal/transport/http/middleware"
 )
 
-func NewRouter(productService service.ProductService, orderService service.OrderService) *gin.Engine {
+func NewRouter(cfg *config.Config, productService service.ProductService, orderService service.OrderService) *gin.Engine {
 	r := gin.New()
-	r.Use(middleware.Logger(), middleware.Recovery())
+	r.Use(middleware.RequestID(), middleware.CORS(cfg.CORSOrigins), middleware.Logger(), middleware.Recovery())
 
 	productHandler := handlers.NewProductHandler(productService)
 	orderHandler := handlers.NewOrderHandler(orderService)
