@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shop/backend/internal/domain"
@@ -24,7 +23,6 @@ func (h *OrderHandler) Create(c *gin.Context) {
 		handleBindingError(c, err)
 		return
 	}
-
 	order := &domain.Order{
 		Number:          req.Number,
 		DeliveryAddress: req.DeliveryAddress,
@@ -35,13 +33,11 @@ func (h *OrderHandler) Create(c *gin.Context) {
 			Quantity:  item.Quantity,
 		})
 	}
-
 	created, err := h.service.Create(c.Request.Context(), order)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, toOrderResponse(created))
 }
 
@@ -52,54 +48,47 @@ func (h *OrderHandler) GetAll(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-
 	orders, err := h.service.GetAll(c.Request.Context(), req.Page, req.PageSize)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	response := make([]dto.OrderResponse, len(orders))
 	for i, o := range orders {
 		response[i] = toOrderResponse(&o)
 	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, dto.PaginatedResponse[dto.OrderResponse]{
+		Items:    response,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	})
 }
 
 func (h *OrderHandler) GetByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	id, ok := parseUintParam(c, "id")
+	if !ok {
 		return
 	}
-
-	order, err := h.service.GetByID(c.Request.Context(), uint(id))
+	order, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, toOrderResponse(order))
 }
 
 func (h *OrderHandler) Update(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	id, ok := parseUintParam(c, "id")
+	if !ok {
 		return
 	}
-
 	var req dto.UpdateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		handleBindingError(c, err)
 		return
 	}
-
 	order := &domain.Order{
-		ID:              uint(id),
+		ID:              id,
 		Number:          req.Number,
 		DeliveryAddress: req.DeliveryAddress,
 	}
@@ -109,29 +98,23 @@ func (h *OrderHandler) Update(c *gin.Context) {
 			Quantity:  item.Quantity,
 		})
 	}
-
 	updated, err := h.service.Update(c.Request.Context(), order)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, toOrderResponse(updated))
 }
 
 func (h *OrderHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	id, ok := parseUintParam(c, "id")
+	if !ok {
 		return
 	}
-
-	if err := h.service.Delete(c.Request.Context(), uint(id)); err != nil {
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.Status(http.StatusNoContent)
 }
 

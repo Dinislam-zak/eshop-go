@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shop/backend/internal/domain"
@@ -24,18 +23,12 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		handleBindingError(c, err)
 		return
 	}
-
-	product := &domain.Product{
-		Name:  req.Name,
-		Price: req.Price,
-	}
-
+	product := &domain.Product{Name: req.Name, Price: req.Price}
 	created, err := h.service.Create(c.Request.Context(), product)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusCreated, toProductResponse(created))
 }
 
@@ -46,80 +39,63 @@ func (h *ProductHandler) GetAll(c *gin.Context) {
 		return
 	}
 	req.Normalize()
-
 	products, err := h.service.GetAll(c.Request.Context(), req.Page, req.PageSize)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	response := make([]dto.ProductResponse, len(products))
 	for i, p := range products {
 		response[i] = toProductResponse(&p)
 	}
-
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, dto.PaginatedResponse[dto.ProductResponse]{
+		Items:    response,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	})
 }
 
 func (h *ProductHandler) GetByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	id, ok := parseUintParam(c, "id")
+	if !ok {
 		return
 	}
-
-	product, err := h.service.GetByID(c.Request.Context(), uint(id))
+	product, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, toProductResponse(product))
 }
 
 func (h *ProductHandler) Update(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	id, ok := parseUintParam(c, "id")
+	if !ok {
 		return
 	}
-
 	var req dto.UpdateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		handleBindingError(c, err)
 		return
 	}
-
-	product := &domain.Product{
-		ID:    uint(id),
-		Name:  req.Name,
-		Price: req.Price,
-	}
-
+	product := &domain.Product{ID: id, Name: req.Name, Price: req.Price}
 	updated, err := h.service.Update(c.Request.Context(), product)
 	if err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.JSON(http.StatusOK, toProductResponse(updated))
 }
 
 func (h *ProductHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 0)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+	id, ok := parseUintParam(c, "id")
+	if !ok {
 		return
 	}
-
-	if err := h.service.Delete(c.Request.Context(), uint(id)); err != nil {
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		handleError(c, err)
 		return
 	}
-
 	c.Status(http.StatusNoContent)
 }
 
