@@ -50,9 +50,26 @@ make run
 | `DB_USER` | Пользователь БД | `postgres` |
 | `DB_PASSWORD` | Пароль БД | `postgres` |
 | `DB_NAME` | Имя базы данных | `shop` |
+| `DB_SSLMODE` | SSL режим для PostgreSQL | `disable` |
 | `SERVER_PORT` | Порт HTTP сервера | `8080` |
+| `CORS_ALLOWED_ORIGINS` | Разрешённые CORS origins (через запятую) | `http://localhost:3000` |
+| `LOG_LEVEL` | Уровень логирования (debug, info, warn, error) | `info` |
+
+## Спецификация API
+
+Полная OpenAPI 3.0 спецификация доступна в файле [`docs/openapi.yaml`](docs/openapi.yaml). 
+Её можно импортировать в Postman, использовать для генерации TypeScript-клиентов или открыть в онлайн-редакторах (например, Swagger Editor).
+
+> **Важно для фронтенда:** Поля `price` передаются в виде строк (например, `"79.9000"`) для сохранения точности. Рекомендуется использовать библиотеки типа `decimal.js` или `bignumber.js` на клиенте для арифметических операций.
 
 ## API Endpoints
+
+### Health (Здоровье)
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| `GET` | `/healthz` | Liveness probe. Всегда возвращает 200 `{"status":"ok"}`. |
+| `GET` | `/readyz` | Readiness probe. Проверяет подключение к БД. Возвращает 200 `{"status":"ok"}` или 503 `{"status":"unavailable"}`. |
 
 ### Products (Товары)
 
@@ -82,11 +99,37 @@ make run
 - `page` — номер страницы (по умолчанию 1)
 - `page_size` — размер страницы (по умолчанию 20, макс 100)
 
+## Формат ответов API
+
+### Успешный список с пагинацией
+```json
+{
+  "items": [...],
+  "page": 1,
+  "page_size": 20
+}
+```
+
+### Формат ошибки
+```json
+{
+  "error": {
+    "code": "validation",
+    "message": "validation failed",
+    "details": [
+      {"field": "price", "message": "exclusiveMinimum"}
+    ]
+  }
+}
+```
+Возможные значения `code`: `validation`, `not_found`, `already_exists`, `in_use`, `internal`. Поля `field` и `details` опциональны и взаимно исключают друг друга.
+
 ## Структура проекта
 
 ```
 backend/
 ├── cmd/api/              # Точка входа приложения
+├── docs/                 # OpenAPI спецификация
 ├── internal/
 │   ├── config/           # Конфигурация
 │   ├── database/         # Подключение к БД и миграции
@@ -135,36 +178,11 @@ make clean         # Удалить артефакты сборки
 ## Известные ограничения
 
 1. **Soft-delete race condition**: Параллельное создание заказа и удаление товара может привести к заказу с удалённым товаром (FK указывает на строку с `deleted_at IS NOT NULL`). Требуется триггер БД или дополнительная блокировка.
-
 2. **Пагинация без total**: Список товаров и заказов не возвращает общее количество записей. Требуется `COUNT(*)` запрос.
-
 3. **Нет аутентификации**: API открыт для всех запросов. Требуется JWT/OAuth для production.
-
-4. **Нет rate limiting**: Отсутствует защита от DDoS. Требуется middleware.
-
-5. **Метрики не собираются**: Нет Prometheus метрик. Требуется отдельная ветка для observability.
+4. **Нет rate limiting**: Отсутствует защита от DDoS.
+5. **Метрики не собираются**: Нет Prometheus метрик.
 
 ## Лицензия
 
 MIT
-
----
-
-**Проверка:**
-
-```bash
-# Проверить применение FOR UPDATE fix
-grep -n "clause.Locking" internal/repository/product_repository.go
-# Должно вывести: db.Clauses(clause.Locking{Strength: "UPDATE"})
-
-# Запустить Docker build (multi-arch)
-docker build -t eshop-api .
-
-# Запустить через docker-compose
-docker compose up --build -d
-
-# Проверить работу
-curl http://localhost:8080/api/products
-
-# Остановить
-docker compose down

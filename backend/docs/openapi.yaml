@@ -360,8 +360,8 @@ components:
           type: string
         price:
           type: string
-          pattern: '^-?\d+(\.\d+)?$'
-          exclusiveMinimum: 0
+          pattern: '^\d+(\.\d+)?$'
+          description: "Positive decimal as string, e.g. \"79.9000\". Must be > 0."
           example: "79.9000"
     UpdateProductRequest:
       type: object
@@ -373,8 +373,8 @@ components:
           type: string
         price:
           type: string
-          pattern: '^-?\d+(\.\d+)?$'
-          exclusiveMinimum: 0
+          pattern: '^\d+(\.\d+)?$'
+          description: "Positive decimal as string, e.g. \"79.9000\". Must be > 0."
           example: "79.9000"
     OrderItemRequest:
       type: object

@@ -45,8 +45,8 @@ func (h *ProductHandler) GetAll(c *gin.Context) {
 		return
 	}
 	response := make([]dto.ProductResponse, len(products))
-	for i, p := range products {
-		response[i] = toProductResponse(&p)
+	for i := range products {
+    	response[i] = toProductResponse(&products[i])
 	}
 	c.JSON(http.StatusOK, dto.PaginatedResponse[dto.ProductResponse]{
 		Items:    response,
