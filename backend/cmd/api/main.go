@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -19,27 +20,37 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Printf("warning: failed to load .env file: %v (using environment variables or defaults)", err)
+	level := new(slog.LevelVar)
+	level.Set(slog.LevelInfo)
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
+
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		slog.Warn("failed to load .env file", "error", err)
 	}
 
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
+		slog.Error("failed to load config", "error", err)
+		os.Exit(1)
 	}
+
+	level.Set(cfg.GetLogLevel())
 
 	db, err := database.NewDB(cfg)
 	if err != nil {
-		log.Fatalf("failed to initialize database: %v", err)
+		slog.Error("failed to initialize database", "error", err)
+		os.Exit(1)
 	}
 
 	if err := database.RunMigrations(db); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		log.Fatalf("failed to get underlying sql.DB: %v", err)
+		slog.Error("failed to get underlying sql.DB", "error", err)
+		os.Exit(1)
 	}
 
 	productRepo := repository.NewProductRepository(db)
@@ -61,7 +72,8 @@ func main() {
 
 	ln, err := net.Listen("tcp", cfg.GetServerAddress())
 	if err != nil {
-		log.Fatalf("failed to listen on %s: %v", cfg.GetServerAddress(), err)
+		slog.Error("failed to listen", "address", cfg.GetServerAddress(), "error", err)
+		os.Exit(1)
 	}
 
 	errCh := make(chan error, 1)
@@ -69,7 +81,7 @@ func main() {
 		errCh <- srv.Serve(ln)
 	}()
 
-	log.Printf("server started on %s", cfg.GetServerAddress())
+	slog.Info("server started", "address", cfg.GetServerAddress())
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -77,22 +89,23 @@ func main() {
 	select {
 	case err := <-errCh:
 		if err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			slog.Error("server error", "error", err)
+			os.Exit(1)
 		}
 	case <-quit:
-		log.Println("shutting down server...")
+		slog.Info("shutting down server...")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("server forced to shutdown: %v", err)
+		slog.Error("server forced to shutdown", "error", err)
 	}
 
 	if err := sqlDB.Close(); err != nil {
-		log.Printf("failed to close database connection: %v", err)
+		slog.Error("failed to close database connection", "error", err)
 	}
 
-	log.Println("server exiting")
+	slog.Info("server exiting")
 }

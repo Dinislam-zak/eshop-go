@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 )
@@ -16,6 +17,7 @@ type Config struct {
 	DBSSLMode   string
 	ServerPort  string
 	CORSOrigins []string
+	LogLevel    string
 }
 
 func Load() (*Config, error) {
@@ -27,6 +29,7 @@ func Load() (*Config, error) {
 		DBName:     getEnv("DB_NAME", "shop"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 		ServerPort: getEnv("SERVER_PORT", "8080"),
+		LogLevel:   strings.ToLower(getEnv("LOG_LEVEL", "info")),
 	}
 
 	if cfg.DBName == "" {
@@ -52,6 +55,19 @@ func (c *Config) GetDSN() string {
 
 func (c *Config) GetServerAddress() string {
 	return fmt.Sprintf(":%s", c.ServerPort)
+}
+
+func (c *Config) GetLogLevel() slog.Level {
+	switch c.LogLevel {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }
 
 func getEnv(key, defaultValue string) string {

@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"runtime/debug"
 
@@ -12,8 +12,18 @@ func Recovery() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
-				log.Printf("panic recovered: %v\n%s", err, debug.Stack())
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+				requestID := GetRequestID(c.Request.Context())
+				slog.Error("panic recovered",
+					"request_id", requestID,
+					"error", err,
+					"stack", string(debug.Stack()),
+				)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+					"error": gin.H{
+						"code":    "internal",
+						"message": "internal server error",
+					},
+				})
 			}
 		}()
 		c.Next()
